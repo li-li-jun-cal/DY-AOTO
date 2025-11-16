@@ -1,0 +1,122 @@
+╔═══════════════════════════════════════════════════════════╗
+║              抖音评论采集工具 - 快速开始                  ║
+║            Douyin Comment Crawler - Quick Start          ║
+╚═══════════════════════════════════════════════════════════╝
+
+📦 项目简介
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+一个专注于抖音平台的评论采集工具，支持：
+✅ 关键词搜索采集
+✅ 指定视频详情采集
+✅ 创作者主页批量采集
+✅ 多种数据导出格式 (CSV/JSON/DB/SQLite)
+
+
+🚀 快速开始
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1️⃣ 安装依赖
+   pip install -r requirements.txt
+   playwright install chromium
+
+2️⃣ 运行程序（三种方式任选其一）
+
+   方式A - 交互式运行（推荐新手）:
+   python run_douyin.py
+
+   方式B - 直接运行（使用默认配置）:
+   python main.py
+
+   方式C - 命令行参数:
+   python main.py --type search --keywords "美食"
+
+
+📖 详细文档
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+完整的使用说明请查看: TEST_GUIDE.txt
+
+
+📁 项目结构
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+├── main.py                 # 主程序入口
+├── run_douyin.py          # 交互式启动脚本
+├── config/                # 配置文件
+│   ├── base_config.py     # 基础配置
+│   └── dy_config.py       # 抖音专属配置
+├── media_platform/douyin/ # 抖音爬虫核心代码
+├── store/douyin/          # 数据存储实现
+├── model/m_douyin.py      # 数据模型
+└── data/douyin/           # 数据输出目录（自动创建）
+
+
+⚙️ 核心配置
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+编辑 config/base_config.py 进行配置：
+
+# 爬取模式
+CRAWLER_TYPE = "search"     # search/detail/creator
+
+# 搜索关键词
+KEYWORDS = "玩具"
+
+# 数据保存格式
+SAVE_DATA_OPTION = "csv"    # csv/json/db/sqlite
+
+# 采集数量控制
+CRAWLER_MAX_NOTES_COUNT = 2                        # 最大视频数
+CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES = 20        # 单视频最大评论数
+
+
+💾 数据输出
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+采集的数据会保存在 data/douyin/ 目录下：
+- CSV格式: data/douyin/csv/
+- JSON格式: data/douyin/json/
+- 数据库: 根据配置存储
+
+
+🎯 三大功能模式
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+模式1: 关键词搜索
+python main.py --type search --keywords "美食"
+→ 搜索指定关键词的视频并采集评论
+
+模式2: 指定视频详情
+python main.py --type detail
+→ 采集指定视频ID/URL的评论（需在dy_config.py中配置）
+
+模式3: 创作者主页
+python main.py --type creator
+→ 采集指定创作者的所有视频评论（需在dy_config.py中配置）
+
+
+❓ 常见问题
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Q: 如何查看所有命令行参数？
+A: python main.py --help
+
+Q: 登录失败怎么办？
+A: 关闭无头模式（设置 HEADLESS = False），手动处理验证
+
+Q: 数据保存在哪里？
+A: data/douyin/ 目录下
+
+Q: 如何修改采集数量？
+A: 修改 config/base_config.py 中的参数
+
+
+⚠️ 重要声明
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+本工具仅供学习研究使用，请遵守以下原则：
+1. 不得用于任何商业用途
+2. 遵守目标平台的使用条款
+3. 合理控制请求频率
+4. 不进行大规模爬取
+
+
+📞 获取帮助
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+详细文档: TEST_GUIDE.txt
+命令帮助: python main.py --help
