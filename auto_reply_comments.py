@@ -158,14 +158,27 @@ class AutoReplyComments:
             if comment_container:
                 # 在评论区容器内滚动
                 try:
-                    await comment_container.evaluate("element => element.scrollBy(0, 1000)")
+                    # 方法1: 使用 scrollTop 增量滚动（最可靠）
+                    current_scroll = await comment_container.evaluate("element => element.scrollTop")
+                    new_scroll = current_scroll + 1000
+                    await comment_container.evaluate(f"element => {{ element.scrollTop = {new_scroll}; }}")
+
+                    # 验证滚动是否生效
+                    if scroll_count < 3:
+                        actual_scroll = await comment_container.evaluate("element => element.scrollTop")
+                        print(f"    容器滚动: {current_scroll} -> {actual_scroll}")
+
                     await asyncio.sleep(1.5)
-                except:
+                except Exception as e:
+                    if scroll_count < 3:
+                        print(f"    ⚠️ 容器滚动失败: {e}，使用页面滚动")
                     # 如果容器滚动失败，降级到页面滚动
                     await self.page.evaluate("window.scrollBy(0, 800)")
                     await asyncio.sleep(1.5)
             else:
                 # 滚动整个页面
+                if scroll_count < 3:
+                    print(f"    使用页面滚动（未找到容器）")
                 await self.page.evaluate("window.scrollBy(0, 800)")
                 await asyncio.sleep(1.5)
 
