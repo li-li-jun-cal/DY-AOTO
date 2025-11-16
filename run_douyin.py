@@ -130,7 +130,7 @@ def configure_login():
 
 
 async def test_login():
-    """测试登录 - 运行一次最小采集来测试登录"""
+    """测试登录 - 只测试浏览器启动和登录，不进行数据采集"""
     print("\n" + "="*60)
     print("【测试登录】")
     print("="*60)
@@ -145,8 +145,8 @@ async def test_login():
     print(f"当前无头模式: {'开启' if config.HEADLESS else '关闭'}")
 
     print("\n说明:")
-    print("测试登录功能将执行一次最小化采集（1个视频，0条评论）")
-    print("这样可以验证登录是否成功，同时不会产生实际的数据采集")
+    print("测试登录功能将只启动浏览器并执行登录流程")
+    print("不会进行任何数据采集，仅验证登录是否成功")
 
     if config.LOGIN_TYPE == "qrcode":
         print("\n二维码登录步骤：")
@@ -181,36 +181,105 @@ async def test_login():
     print("\n开始登录测试...")
     print("-"*60)
 
-    # 保存原始配置
-    original_crawler_type = config.CRAWLER_TYPE
-    original_max_notes = config.CRAWLER_MAX_NOTES_COUNT
-    original_max_comments = config.CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES
-    original_enable_comments = config.ENABLE_GET_COMMENTS
-    original_keywords = config.KEYWORDS
-
     try:
-        # 临时设置最小采集配置
-        config.CRAWLER_TYPE = "search"
-        config.CRAWLER_MAX_NOTES_COUNT = 1  # 只采集1个视频
-        config.CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES = 0  # 不采集评论
-        config.ENABLE_GET_COMMENTS = False  # 关闭评论采集
-        config.KEYWORDS = "测试"  # 使用简单关键词
-
-        print("\n🔄 正在启动浏览器并登录...")
+        print("\n🔄 正在启动浏览器...")
         print("提示: 如果长时间无响应，请检查playwright是否已安装")
         print("      安装命令: playwright install chromium\n")
 
-        crawler = DouYinCrawler()
-        await crawler.start()
+        from playwright.async_api import async_playwright
+        from media_platform.douyin.login import DouYinLogin
+        from media_platform.douyin.client import DouYinClient
+        from tools import utils
 
-        print("\n" + "="*60)
-        print("✅ 登录测试成功！")
-        print("="*60)
-        print("\n提示:")
-        print("- 登录状态已保存到: browser_data/ 目录")
-        print("- 下次运行将自动使用已保存的登录状态")
-        print("- 如需重新登录，请删除 browser_data/ 目录")
-        print("- 现在可以进行正式的数据采集了")
+        # 检查是否启用代理
+        playwright_proxy_format = None
+        if config.ENABLE_IP_PROXY:
+            print("⚠️  检测到启用了代理，可能导致连接问题")
+            print("   如果登录失败，建议关闭代理重试")
+            print("   设置方法: 在config/base_config.py中设置 ENABLE_IP_PROXY = False\n")
+
+        async with async_playwright() as playwright:
+            # 启动浏览器
+            chromium = playwright.chromium
+            browser_context = await chromium.launch_persistent_context(
+                user_data_dir=config.USER_DATA_DIR,
+                accept_downloads=True,
+                headless=config.HEADLESS,
+                proxy=playwright_proxy_format,
+                viewport={"width": 1920, "height": 1080},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+            )
+
+            print("✅ 浏览器启动成功")
+
+            # 创建页面并访问抖音
+            context_page = await browser_context.new_page()
+            await context_page.goto("https://www.douyin.com")
+            print("✅ 已访问抖音首页")
+
+            # 创建客户端
+            dy_client = DouYinClient(
+                timeout=config.REQUEST_TIMEOUT,
+                proxies=None,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "Referer": "https://www.douyin.com/",
+                    "Cookie": config.COOKIES
+                },
+                playwright_page=context_page,
+                cookie_dict={}
+            )
+
+            # 检查是否已登录
+            print("\n🔍 正在检查登录状态...")
+            is_logged_in = await dy_client.pong(browser_context=browser_context)
+
+            if is_logged_in:
+                print("✅ 检测到已有登录状态（使用缓存的登录信息）")
+            else:
+                print("ℹ️  未检测到登录状态，开始执行登录流程...\n")
+
+                # 执行登录
+                login_obj = DouYinLogin(
+                    login_type=config.LOGIN_TYPE,
+                    login_phone="",  # 手机号登录时需要配置
+                    browser_context=browser_context,
+                    context_page=context_page,
+                    cookie_str=config.COOKIES,
+                )
+                await login_obj.begin()
+
+                # 更新客户端的cookies
+                await dy_client.update_cookies(browser_context=browser_context)
+                print("✅ 登录流程完成")
+
+            # 再次验证登录状态
+            print("\n🔍 正在验证登录状态...")
+            await asyncio.sleep(2)
+            is_logged_in = await dy_client.pong(browser_context=browser_context)
+
+            if is_logged_in:
+                print("\n" + "="*60)
+                print("✅✅✅ 登录测试成功！✅✅✅")
+                print("="*60)
+                print("\n提示:")
+                print("- 登录状态已保存到: browser_data/ 目录")
+                print("- 下次运行将自动使用已保存的登录状态")
+                print("- 如需重新登录，请删除 browser_data/ 目录")
+                print("- 现在可以进行正式的数据采集了")
+            else:
+                print("\n" + "="*60)
+                print("⚠️  登录状态验证失败")
+                print("="*60)
+                print("\n虽然登录流程已执行，但无法确认登录状态")
+                print("建议：")
+                print("1. 关闭无头模式，手动检查浏览器中的登录状态")
+                print("2. 尝试其他登录方式（如二维码登录）")
+                print("3. 检查Cookie是否有效（如果使用Cookie登录）")
+
+            # 关闭浏览器
+            await browser_context.close()
+            print("\n🔄 浏览器已关闭")
 
     except Exception as e:
         print("\n" + "="*60)
@@ -220,25 +289,18 @@ async def test_login():
         print("\n可能的原因:")
         print("1. Playwright未安装或浏览器驱动未安装")
         print("   解决方法: playwright install chromium")
-        print("2. 网络连接问题")
+        print("2. 网络连接问题或代理配置错误")
+        print("   解决方法: 关闭代理 (config.ENABLE_IP_PROXY = False)")
         print("3. 二维码已过期（请重试）")
         print("4. 验证码输入错误")
         print("5. Cookie已失效")
         print("\n调试建议:")
         print("- 关闭无头模式重试（在配置登录方式中设置）")
-        print("- 检查网络连接")
+        print("- 检查网络连接和代理设置")
         print("- 查看下方的详细错误信息")
         print("\n详细错误:")
         import traceback
         traceback.print_exc()
-
-    finally:
-        # 恢复原始配置
-        config.CRAWLER_TYPE = original_crawler_type
-        config.CRAWLER_MAX_NOTES_COUNT = original_max_notes
-        config.CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES = original_max_comments
-        config.ENABLE_GET_COMMENTS = original_enable_comments
-        config.KEYWORDS = original_keywords
 
 
 def show_config():
