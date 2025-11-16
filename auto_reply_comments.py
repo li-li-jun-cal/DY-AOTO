@@ -293,8 +293,19 @@ class AutoReplyComments:
             traceback.print_exc()
             return False
 
-    async def reply_to_comment(self, video_url: str, comment_content: str, reply_text: str) -> bool:
-        """回复指定评论的完整流程"""
+    async def reply_to_comment(self, video_url: str, comment_content: str, reply_text: str, max_scrolls: int = 200) -> bool:
+        """回复指定评论的完整流程
+
+        Args:
+            video_url: 视频链接
+            comment_content: 要查找的评论内容
+            reply_text: 回复内容
+            max_scrolls: 最大滚动次数（默认200，约能加载1000条评论）
+                        - 100次：约500条评论，耗时5分钟
+                        - 200次：约1000条评论，耗时10分钟
+                        - 500次：约2500条评论，耗时25分钟
+                        - 1000次：约5000条评论，耗时50分钟
+        """
         try:
             # 1. 访问视频页面
             print(f"\n📍 访问视频: {video_url}")
@@ -309,7 +320,7 @@ class AutoReplyComments:
             await asyncio.sleep(2)
 
             # 3. 查找目标评论
-            comment_element = await self.scroll_and_find_comment(comment_content)
+            comment_element = await self.scroll_and_find_comment(comment_content, max_scrolls=max_scrolls)
             if not comment_element:
                 print("❌ 未找到目标评论")
                 return False
@@ -334,10 +345,18 @@ class AutoReplyComments:
             traceback.print_exc()
             return False
 
-    async def auto_reply_batch(self, comments: List[Dict], reply_templates: List[str], max_count: int = 10):
-        """批量自动回复评论"""
+    async def auto_reply_batch(self, comments: List[Dict], reply_templates: List[str], max_count: int = 10, max_scrolls: int = 200):
+        """批量自动回复评论
+
+        Args:
+            comments: 评论列表
+            reply_templates: 回复模板列表
+            max_count: 最多回复多少条
+            max_scrolls: 每个视频最大滚动次数（默认200）
+        """
         print(f"\n🚀 开始批量回复 (最多 {max_count} 条)")
         print(f"📝 回复模板: {reply_templates}")
+        print(f"🔍 滚动深度: {max_scrolls} 次（约 {max_scrolls * 5} 条评论）")
         print("-" * 60)
 
         success_count = 0
@@ -369,7 +388,7 @@ class AutoReplyComments:
             print(f"💬 将回复: {reply_text}")
 
             # 执行回复
-            success = await self.reply_to_comment(video_url, comment_content, reply_text)
+            success = await self.reply_to_comment(video_url, comment_content, reply_text, max_scrolls=max_scrolls)
 
             if success:
                 success_count += 1
@@ -506,6 +525,35 @@ async def main():
         max_count_input = input(f"\n最多回复多少条评论？ (默认:5, 建议不超过10): ").strip()
         max_count = int(max_count_input) if max_count_input.isdigit() else 5
 
+        # 步骤6: 设置滚动深度
+        print("\n" + "=" * 60)
+        print("步骤5: 设置滚动深度（高级选项）")
+        print("=" * 60)
+        print("\n滚动深度决定了能找到多靠后的评论：")
+        print("  1. 快速模式（100次） - 约500条评论，5分钟")
+        print("  2. 标准模式（200次） - 约1000条评论，10分钟 [推荐]")
+        print("  3. 深度模式（500次） - 约2500条评论，25分钟")
+        print("  4. 极限模式（1000次）- 约5000条评论，50分钟")
+        print("  5. 自定义")
+
+        scroll_mode = input("\n请选择模式 [1-5] (默认:2): ").strip()
+
+        scroll_mapping = {
+            '1': 100,
+            '2': 200,
+            '3': 500,
+            '4': 1000,
+        }
+
+        if scroll_mode == '5':
+            custom_scroll = input("请输入自定义滚动次数（1-2000）: ").strip()
+            max_scrolls = int(custom_scroll) if custom_scroll.isdigit() else 200
+            max_scrolls = min(max(max_scrolls, 1), 2000)  # 限制范围 1-2000
+        else:
+            max_scrolls = scroll_mapping.get(scroll_mode, 200)
+
+        print(f"\n✅ 将使用 {max_scrolls} 次滚动（约能找到前 {max_scrolls * 5} 条评论）")
+
         # 最终确认
         print("\n" + "=" * 60)
         print("确认信息")
@@ -527,7 +575,7 @@ async def main():
             return
 
         # 执行批量回复
-        await tool.auto_reply_batch(comments, reply_templates, max_count)
+        await tool.auto_reply_batch(comments, reply_templates, max_count, max_scrolls)
 
     except KeyboardInterrupt:
         print("\n\n⚠️  用户中断操作")
