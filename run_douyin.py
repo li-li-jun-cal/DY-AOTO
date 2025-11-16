@@ -113,16 +113,16 @@ def configure_login():
     print("【浏览器显示设置】")
     print(f"当前无头模式: {'开启' if config.HEADLESS else '关闭'}")
     print("\n说明:")
-    print("- 无头模式 = 开启: 不显示浏览器窗口（推荐）")
-    print("- 无头模式 = 关闭: 显示浏览器窗口（方便调试）")
+    print("- 无头模式 = 开启: 不显示浏览器窗口")
+    print("- 无头模式 = 关闭: 显示浏览器窗口（推荐首次使用）")
 
-    headless_choice = input("\n是否开启无头模式？[y/n] (默认:y): ").strip().lower()
-    if headless_choice == 'n':
-        config.HEADLESS = False
-        print("✅ 已关闭无头模式，将显示浏览器窗口")
-    else:
+    headless_choice = input("\n是否开启无头模式？[y/n] (默认:n 显示浏览器): ").strip().lower()
+    if headless_choice == 'y':
         config.HEADLESS = True
         print("✅ 已开启无头模式")
+    else:
+        config.HEADLESS = False
+        print("✅ 已关闭无头模式，将显示浏览器窗口")
 
     print("\n" + "="*60)
     print("✅ 登录配置完成！")
@@ -130,7 +130,7 @@ def configure_login():
 
 
 async def test_login():
-    """测试登录"""
+    """测试登录 - 运行一次最小采集来测试登录"""
     print("\n" + "="*60)
     print("【测试登录】")
     print("="*60)
@@ -142,20 +142,31 @@ async def test_login():
     }
 
     print(f"\n当前登录方式: {login_type_map.get(config.LOGIN_TYPE, '未知')}")
+    print(f"当前无头模式: {'开启' if config.HEADLESS else '关闭'}")
+
     print("\n说明:")
+    print("测试登录功能将执行一次最小化采集（1个视频，0条评论）")
+    print("这样可以验证登录是否成功，同时不会产生实际的数据采集")
 
     if config.LOGIN_TYPE == "qrcode":
+        print("\n二维码登录步骤：")
+        if config.HEADLESS:
+            print("⚠️  警告: 无头模式下无法看到二维码！")
+            print("   建议：重新配置登录方式并关闭无头模式")
+            return
         print("1. 程序会打开浏览器并显示二维码")
         print("2. 使用抖音APP扫描二维码")
         print("3. 在手机上确认登录")
         print("4. 等待程序提示登录成功")
     elif config.LOGIN_TYPE == "phone":
+        print("\n手机号登录步骤：")
         print("1. 程序会打开浏览器")
         print("2. 输入手机号后点击获取验证码")
         print("3. 可能需要滑动验证码")
         print("4. 输入收到的验证码")
         print("5. 等待程序提示登录成功")
     elif config.LOGIN_TYPE == "cookie":
+        print("\nCookie登录步骤：")
         print("1. 程序会使用您提供的Cookie登录")
         print("2. 如果Cookie有效，将直接登录成功")
         print("3. 如果Cookie失效，需重新配置")
@@ -170,36 +181,36 @@ async def test_login():
     print("\n开始登录测试...")
     print("-"*60)
 
+    # 保存原始配置
+    original_crawler_type = config.CRAWLER_TYPE
+    original_max_notes = config.CRAWLER_MAX_NOTES_COUNT
+    original_max_comments = config.CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES
+    original_enable_comments = config.ENABLE_GET_COMMENTS
+    original_keywords = config.KEYWORDS
+
     try:
-        # 临时设置一个小的采集数量，避免登录后开始大量采集
-        original_max_notes = config.CRAWLER_MAX_NOTES_COUNT
-        config.CRAWLER_MAX_NOTES_COUNT = 0  # 设置为0，只登录不采集
+        # 临时设置最小采集配置
+        config.CRAWLER_TYPE = "search"
+        config.CRAWLER_MAX_NOTES_COUNT = 1  # 只采集1个视频
+        config.CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES = 0  # 不采集评论
+        config.ENABLE_GET_COMMENTS = False  # 关闭评论采集
+        config.KEYWORDS = "测试"  # 使用简单关键词
+
+        print("\n🔄 正在启动浏览器并登录...")
+        print("提示: 如果长时间无响应，请检查playwright是否已安装")
+        print("      安装命令: playwright install chromium\n")
 
         crawler = DouYinCrawler()
+        await crawler.start()
 
-        print("\n🔄 正在初始化浏览器...")
-        await crawler.init_config(platform="dy")
-
-        print("🔄 正在启动浏览器...")
-        # 这里只初始化浏览器和登录，不执行采集
-        async with crawler.async_playwright_manager.launch_browser() as (browser_context, _, _):
-            print("🔄 正在尝试登录...")
-            await crawler.launch_browser()
-            await crawler.login()
-
-            print("\n" + "="*60)
-            print("✅ 登录测试成功！")
-            print("="*60)
-            print("\n提示:")
-            print("- 登录状态已保存")
-            print("- 下次运行将自动使用已保存的登录状态")
-            print("- 如需重新登录，请删除浏览器缓存目录")
-
-            # 等待一下让用户看到成功信息
-            await asyncio.sleep(3)
-
-        # 恢复原始配置
-        config.CRAWLER_MAX_NOTES_COUNT = original_max_notes
+        print("\n" + "="*60)
+        print("✅ 登录测试成功！")
+        print("="*60)
+        print("\n提示:")
+        print("- 登录状态已保存到: browser_data/ 目录")
+        print("- 下次运行将自动使用已保存的登录状态")
+        print("- 如需重新登录，请删除 browser_data/ 目录")
+        print("- 现在可以进行正式的数据采集了")
 
     except Exception as e:
         print("\n" + "="*60)
@@ -207,16 +218,27 @@ async def test_login():
         print("="*60)
         print(f"\n错误信息: {e}")
         print("\n可能的原因:")
-        print("1. 网络连接问题")
-        print("2. 二维码已过期（请重试）")
-        print("3. 验证码输入错误")
-        print("4. Cookie已失效")
-        print("\n建议:")
+        print("1. Playwright未安装或浏览器驱动未安装")
+        print("   解决方法: playwright install chromium")
+        print("2. 网络连接问题")
+        print("3. 二维码已过期（请重试）")
+        print("4. 验证码输入错误")
+        print("5. Cookie已失效")
+        print("\n调试建议:")
+        print("- 关闭无头模式重试（在配置登录方式中设置）")
         print("- 检查网络连接")
-        print("- 关闭无头模式重试（设置 HEADLESS = False）")
-        print("- 尝试其他登录方式")
+        print("- 查看下方的详细错误信息")
+        print("\n详细错误:")
         import traceback
         traceback.print_exc()
+
+    finally:
+        # 恢复原始配置
+        config.CRAWLER_TYPE = original_crawler_type
+        config.CRAWLER_MAX_NOTES_COUNT = original_max_notes
+        config.CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES = original_max_comments
+        config.ENABLE_GET_COMMENTS = original_enable_comments
+        config.KEYWORDS = original_keywords
 
 
 def show_config():
@@ -413,7 +435,19 @@ async def main():
     print("2. 登录成功后，选择需要的采集模式进行数据采集")
     print("3. 采集的数据会保存在 data/douyin/ 目录下")
     print("4. 如遇问题，可关闭无头模式查看浏览器窗口")
+    print("5. 二维码登录时必须关闭无头模式才能看到二维码")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+    # 检查playwright是否安装
+    print("\n🔍 环境检查:")
+    try:
+        from playwright.async_api import async_playwright
+        print("✅ Playwright 已安装")
+    except ImportError:
+        print("❌ Playwright 未安装!")
+        print("   请运行: pip install playwright")
+        print("   然后运行: playwright install chromium")
+        return
 
     while True:
         try:
