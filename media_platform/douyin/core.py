@@ -151,7 +151,13 @@ class DouYinCrawler(AbstractCrawler):
                         publish_time=PublishTimeType(config.PUBLISH_TIME_TYPE),
                         search_id=dy_search_id,
                     )
+                    # 🔥 调试：打印完整响应以诊断问题
                     if posts_res.get("data") is None or posts_res.get("data") == []:
+                        utils.logger.warning(f"[DouYinCrawler.search] ⚠️  搜索返回空结果！")
+                        utils.logger.warning(f"[DouYinCrawler.search] 完整响应: {posts_res}")
+                        # 检查是否有错误信息
+                        if "status_code" in posts_res and posts_res["status_code"] != 0:
+                            utils.logger.error(f"[DouYinCrawler.search] API返回错误码: {posts_res.get('status_code')}, 错误信息: {posts_res.get('status_msg', 'unknown')}")
                         utils.logger.info(f"[DouYinCrawler.search] search douyin keyword: {keyword}, page: {page} is empty,{posts_res.get('data')}`")
                         break
                 except DataFetchError:
@@ -377,6 +383,11 @@ class DouYinCrawler(AbstractCrawler):
     async def create_douyin_client(self, httpx_proxy: Optional[str]) -> DouYinClient:
         """Create douyin client"""
         cookie_str, cookie_dict = utils.convert_cookies(await self.browser_context.cookies())  # type: ignore
+        # 🔥 调试：检查是否有关键Cookie
+        has_sessionid = "sessionid" in cookie_dict or "sessionid_ss" in cookie_dict
+        utils.logger.info(f"[DouYinCrawler.create_douyin_client] Cookie数量: {len(cookie_dict)}, 包含sessionid: {has_sessionid}")
+        if not has_sessionid:
+            utils.logger.warning(f"[DouYinCrawler.create_douyin_client] ⚠️  警告：未找到sessionid，可能未登录！")
         # 🔥 修复箭头函数语法 - 改用 function 语法
         user_agent = await self.context_page.evaluate("function() { return navigator.userAgent; }")
         douyin_client = DouYinClient(
