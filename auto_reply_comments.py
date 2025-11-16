@@ -90,16 +90,17 @@ class AutoReplyComments:
         print(f"✅ 筛选后剩余 {len(filtered)} 条评论")
         return filtered
 
-    async def scroll_and_find_comment(self, comment_content: str, max_scrolls: int = 20) -> bool:
-        """滚动页面查找特定评论"""
+    async def scroll_and_find_comment(self, comment_content: str, max_scrolls: int = 200) -> bool:
+        """滚动页面查找特定评论 - 支持大量评论的懒加载"""
         print(f"🔍 开始查找评论: {comment_content[:30]}...")
 
         # 等待评论区加载
         await asyncio.sleep(3)
 
-        for scroll_count in range(max_scrolls):
-            print(f"  滚动第 {scroll_count + 1}/{max_scrolls} 次...")
+        last_comment_count = 0
+        no_new_comments_count = 0  # 连续没有新评论的次数
 
+        for scroll_count in range(max_scrolls):
             # 获取当前所有评论文本
             # 使用多个可能的选择器
             comment_selectors = [
@@ -110,17 +111,23 @@ class AutoReplyComments:
             ]
 
             found = False
+            current_comment_count = 0
+
             for selector in comment_selectors:
                 try:
                     comment_elements = await self.page.query_selector_all(selector)
                     if comment_elements:
-                        print(f"  找到 {len(comment_elements)} 个评论元素（选择器: {selector}）")
+                        current_comment_count = len(comment_elements)
+
+                        # 每10次滚动显示一次进度
+                        if scroll_count % 10 == 0:
+                            print(f"  已滚动 {scroll_count} 次，当前加载了 {current_comment_count} 条评论")
 
                         for element in comment_elements:
                             text = await element.inner_text()
                             # 检查评论内容是否匹配
                             if comment_content in text:
-                                print(f"✅ 找到目标评论！")
+                                print(f"✅ 找到目标评论！（第 {scroll_count + 1} 次滚动）")
                                 # 滚动到该评论
                                 await element.scroll_into_view_if_needed()
                                 await asyncio.sleep(1)
@@ -129,11 +136,22 @@ class AutoReplyComments:
                 except Exception as e:
                     continue
 
-            # 滚动页面
-            await self.page.evaluate("window.scrollBy(0, 500)")
-            await asyncio.sleep(random.uniform(1, 2))
+            # 检查是否还在加载新评论
+            if current_comment_count == last_comment_count:
+                no_new_comments_count += 1
+                if no_new_comments_count >= 5:
+                    print(f"⚠️  连续5次滚动没有加载新评论，已到达评论底部")
+                    print(f"  总共加载了 {current_comment_count} 条评论，未找到目标评论")
+                    break
+            else:
+                no_new_comments_count = 0  # 重置计数器
+                last_comment_count = current_comment_count
 
-        print(f"⚠️  滚动 {max_scrolls} 次后未找到目标评论")
+            # 滚动页面 - 滚动距离更大，加载更多评论
+            await self.page.evaluate("window.scrollBy(0, 800)")
+            await asyncio.sleep(random.uniform(0.5, 1))  # 减少等待时间，加快滚动
+
+        print(f"⚠️  滚动结束，未找到目标评论")
         return None
 
     async def find_and_click_reply_button(self, comment_element) -> bool:
