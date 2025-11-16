@@ -262,7 +262,9 @@ class AutoReplyComments:
         try:
             # 1. 访问视频页面
             print(f"\n📍 访问视频: {video_url}")
-            await self.page.goto(video_url, wait_until="networkidle", timeout=30000)
+            # 使用 domcontentloaded 而不是 networkidle，避免超时
+            # 抖音页面有很多持续的网络请求，networkidle 可能永远达不到
+            await self.page.goto(video_url, wait_until="domcontentloaded", timeout=60000)
             await asyncio.sleep(random.uniform(3, 5))
 
             # 2. 滚动到评论区（模拟用户行为）
