@@ -27,10 +27,10 @@ IP_PROXY_PROVIDER_NAME = "kuaidaili"  # kuaidaili | wandouhttp
 
 # 设置为True不会打开浏览器（无头浏览器）
 # 设置False会打开一个浏览器
+# ⚠️ 重要：如果使用二维码登录（LOGIN_TYPE = "qrcode"），必须设置为False才能看到二维码！
 # 小红书如果一直扫码登录不通过，打开浏览器手动过一下滑动验证码
 # 抖音如果一直提示失败，打开浏览器看下是否扫码登录之后出现了手机号验证，如果出现了手动过一下再试。
-# 🔥 修改为True：使用无头模式，避免频繁弹出黑色窗口
-HEADLESS = True
+HEADLESS = False
 
 # 是否保存登录状态
 SAVE_LOGIN_STATE = True

@@ -387,6 +387,28 @@ async def run_search_mode():
     print("【关键词搜索模式】")
     print("="*60)
 
+    # 检查登录状态
+    import os
+    user_data_dir = config.USER_DATA_DIR % config.PLATFORM
+    has_login_cache = os.path.exists(user_data_dir)
+
+    if not has_login_cache:
+        print("\n⚠️  警告：检测到您可能还未登录！")
+        print("   数据采集需要登录状态，未登录可能导致：")
+        print("   - 搜索结果为空")
+        print("   - 无法获取评论")
+        print("   - 被限制访问")
+        print("\n建议操作：")
+        print("   1. 先返回主菜单")
+        print("   2. 选择【1】配置登录方式")
+        print("   3. 选择【2】测试登录")
+        print("   4. 登录成功后再进行数据采集")
+        print("-" * 60)
+        confirm_continue = input("\n是否仍要继续（会自动触发登录）？[y/n] (默认:n): ").strip().lower()
+        if confirm_continue != 'y':
+            print("已取消，请先完成登录")
+            return
+
     keywords = input("\n请输入搜索关键词 (多个用逗号分隔，默认:玩具): ").strip()
     if keywords:
         config.KEYWORDS = keywords
@@ -404,6 +426,14 @@ async def run_search_mode():
     print(f"\n开始搜索关键词: {config.KEYWORDS}")
     print(f"将采集 {config.CRAWLER_MAX_NOTES_COUNT} 个视频，每个视频最多 {config.CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES} 条评论")
     print(f"登录方式: {config.LOGIN_TYPE}")
+
+    # 检查配置冲突
+    if config.LOGIN_TYPE == "qrcode" and config.HEADLESS:
+        print("\n⚠️  配置冲突警告：")
+        print("   当前使用二维码登录 + 无头模式")
+        print("   这会导致看不到二维码，登录将失败！")
+        print("   建议：在 config/base_config.py 中设置 HEADLESS = False")
+
     print("-" * 60)
 
     confirm = input("\n确认开始采集？[y/n] (默认:y): ").strip().lower()
@@ -420,6 +450,20 @@ async def run_detail_mode():
     print("\n" + "="*60)
     print("【指定视频详情模式】")
     print("="*60)
+
+    # 检查登录状态
+    import os
+    user_data_dir = config.USER_DATA_DIR % config.PLATFORM
+    has_login_cache = os.path.exists(user_data_dir)
+
+    if not has_login_cache:
+        print("\n⚠️  警告：检测到您可能还未登录！")
+        print("   建议先完成登录再进行数据采集")
+        confirm_continue = input("\n是否仍要继续（会自动触发登录）？[y/n] (默认:n): ").strip().lower()
+        if confirm_continue != 'y':
+            print("已取消，请先完成登录")
+            return
+
     print("\n支持的视频ID/URL格式:")
     print("1. 完整视频URL: https://www.douyin.com/video/7525538910311632128")
     print("2. 短链接: https://v.douyin.com/drIPtQ_WPWY/")
@@ -454,6 +498,20 @@ async def run_creator_mode():
     print("\n" + "="*60)
     print("【创作者主页模式】")
     print("="*60)
+
+    # 检查登录状态
+    import os
+    user_data_dir = config.USER_DATA_DIR % config.PLATFORM
+    has_login_cache = os.path.exists(user_data_dir)
+
+    if not has_login_cache:
+        print("\n⚠️  警告：检测到您可能还未登录！")
+        print("   建议先完成登录再进行数据采集")
+        confirm_continue = input("\n是否仍要继续（会自动触发登录）？[y/n] (默认:n): ").strip().lower()
+        if confirm_continue != 'y':
+            print("已取消，请先完成登录")
+            return
+
     print("\n支持的创作者ID/URL格式:")
     print("1. 完整主页URL: https://www.douyin.com/user/MS4wLjABAAAA...")
     print("2. sec_user_id: MS4wLjABAAAATJPY7LAlaa5X-c8uNdWkvz0jUGgpw4eeXIwu_8BhvqE")
