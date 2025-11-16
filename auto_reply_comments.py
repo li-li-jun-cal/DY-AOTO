@@ -395,7 +395,9 @@ async def main():
         # 查找data目录下的CSV文件
         data_dir = "data/douyin/csv"
         if os.path.exists(data_dir):
-            csv_files = [f for f in os.listdir(data_dir) if f.endswith('_comments.csv')]
+            # 支持中英文文件名：_comments.csv 或 _评论.csv
+            csv_files = [f for f in os.listdir(data_dir)
+                        if f.endswith('_comments.csv') or f.endswith('_评论.csv')]
             if csv_files:
                 print("\n可用的评论文件：")
                 for i, file in enumerate(csv_files):
