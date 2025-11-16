@@ -202,7 +202,7 @@ async def test_login():
             # 启动浏览器
             chromium = playwright.chromium
             browser_context = await chromium.launch_persistent_context(
-                user_data_dir=config.USER_DATA_DIR,
+                user_data_dir=config.USER_DATA_DIR % config.PLATFORM,  # 使用平台名称格式化路径
                 accept_downloads=True,
                 headless=config.HEADLESS,
                 proxy=playwright_proxy_format,
@@ -219,8 +219,7 @@ async def test_login():
 
             # 创建客户端
             dy_client = DouYinClient(
-                timeout=config.REQUEST_TIMEOUT,
-                proxies=None,
+                proxy=None,  # 不使用代理
                 headers={
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                     "Referer": "https://www.douyin.com/",
@@ -262,10 +261,11 @@ async def test_login():
                 print("\n" + "="*60)
                 print("✅✅✅ 登录测试成功！✅✅✅")
                 print("="*60)
+                user_data_dir = config.USER_DATA_DIR % config.PLATFORM
                 print("\n提示:")
-                print("- 登录状态已保存到: browser_data/ 目录")
+                print(f"- 登录状态已保存到: {user_data_dir}/ 目录")
                 print("- 下次运行将自动使用已保存的登录状态")
-                print("- 如需重新登录，请删除 browser_data/ 目录")
+                print(f"- 如需重新登录，请删除 {user_data_dir}/ 目录")
                 print("- 现在可以进行正式的数据采集了")
             else:
                 print("\n" + "="*60)
