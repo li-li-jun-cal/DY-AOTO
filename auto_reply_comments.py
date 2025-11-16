@@ -99,6 +99,7 @@ class AutoReplyComments:
 
         last_comment_count = 0
         no_new_comments_count = 0  # 连续没有新评论的次数
+        found_any_comments = False
 
         for scroll_count in range(max_scrolls):
             # 获取当前所有评论文本
@@ -110,7 +111,6 @@ class AutoReplyComments:
                 'div[role="article"]'
             ]
 
-            found = False
             current_comment_count = 0
 
             for selector in comment_selectors:
@@ -118,10 +118,11 @@ class AutoReplyComments:
                     comment_elements = await self.page.query_selector_all(selector)
                     if comment_elements:
                         current_comment_count = len(comment_elements)
+                        found_any_comments = True
 
                         # 每10次滚动显示一次进度
-                        if scroll_count % 10 == 0:
-                            print(f"  已滚动 {scroll_count} 次，当前加载了 {current_comment_count} 条评论")
+                        if scroll_count % 10 == 0 or scroll_count < 5:
+                            print(f"  滚动第 {scroll_count + 1} 次，当前加载了 {current_comment_count} 条评论")
 
                         for element in comment_elements:
                             text = await element.inner_text()
@@ -137,19 +138,25 @@ class AutoReplyComments:
                     continue
 
             # 检查是否还在加载新评论
-            if current_comment_count == last_comment_count:
+            if current_comment_count == last_comment_count and found_any_comments:
                 no_new_comments_count += 1
-                if no_new_comments_count >= 5:
-                    print(f"⚠️  连续5次滚动没有加载新评论，已到达评论底部")
+                if no_new_comments_count >= 10:  # 增加到10次，更保险
+                    print(f"⚠️  连续10次滚动没有加载新评论，已到达评论底部")
                     print(f"  总共加载了 {current_comment_count} 条评论，未找到目标评论")
                     break
-            else:
+            elif current_comment_count > last_comment_count:
                 no_new_comments_count = 0  # 重置计数器
                 last_comment_count = current_comment_count
 
-            # 滚动页面 - 滚动距离更大，加载更多评论
+            # 滚动页面 - 滚动到底部触发懒加载
+            # 方法1: 滚动固定距离
             await self.page.evaluate("window.scrollBy(0, 800)")
-            await asyncio.sleep(random.uniform(0.5, 1))  # 减少等待时间，加快滚动
+            await asyncio.sleep(1.5)  # 增加等待时间，让抖音有时间加载
+
+            # 方法2: 每隔3次滚动，直接滚动到页面底部（更激进）
+            if scroll_count % 3 == 2:
+                await self.page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                await asyncio.sleep(2)
 
         print(f"⚠️  滚动结束，未找到目标评论")
         return None
