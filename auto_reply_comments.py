@@ -261,9 +261,10 @@ class AutoReplyComments:
             # 查找回复输入框（抖音使用 contenteditable div）
             print("  🔍 正在查找输入框...")
             input_selectors = [
-                'div[contenteditable="true"]',  # 抖音专用
-                'textarea[placeholder*="回复"]',  # 备用
-                'textarea[placeholder*="评论"]',  # 备用
+                'div.public-DraftEditor-content[contenteditable="true"]',  # 抖音专用（精确）
+                'div.notranslate[contenteditable="true"]',  # 抖音备用
+                'div[contenteditable="true"]',  # 通用
+                'textarea[placeholder*="回复"]',  # 其他平台
                 'textarea',  # 备用
             ]
 
@@ -373,7 +374,18 @@ class AutoReplyComments:
                 # 给可滚动的评论容器添加一个临时ID
                 found = await self.page.evaluate("""
                     () => {
-                        // 方法1: 查找有 overflow-y: scroll/auto 的div
+                        // 方法1: 直接查找抖音的scroll容器（最精确）
+                        const scrollContainers = document.querySelectorAll('div[class*="scroll-container"]');
+                        for (const div of scrollContainers) {
+                            const hasComments = div.querySelector('[data-e2e="comment-item"]');
+                            if (hasComments) {
+                                div.setAttribute('data-temp-scroll-container', 'true');
+                                console.log('找到scroll-container评论容器:', div.className);
+                                return true;
+                            }
+                        }
+
+                        // 方法2: 查找有 overflow-y: scroll/auto 的div
                         const allDivs = document.querySelectorAll('div');
                         for (const div of allDivs) {
                             const style = window.getComputedStyle(div);
@@ -382,7 +394,7 @@ class AutoReplyComments:
                             // 检查是否可滚动 + 有足够高度 + 包含评论
                             if ((overflowY === 'scroll' || overflowY === 'auto') &&
                                 div.scrollHeight > div.clientHeight &&
-                                div.clientHeight > 200) {
+                                div.clientHeight > 500) {  // 提高最小高度要求
 
                                 // 检查是否包含评论元素
                                 const hasComments = div.querySelector('[data-e2e="comment-item"]');
@@ -394,7 +406,7 @@ class AutoReplyComments:
                             }
                         }
 
-                        // 方法2: 查找评论项的父容器
+                        // 方法3: 查找评论项的父容器
                         const commentItems = document.querySelectorAll('[data-e2e="comment-item"]');
                         if (commentItems.length > 0) {
                             let parent = commentItems[0].parentElement;
