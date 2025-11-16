@@ -201,8 +201,12 @@ async def test_login():
         async with async_playwright() as playwright:
             # 启动浏览器
             chromium = playwright.chromium
+            # 🔥 重要：必须使用与 crawler.start() 相同的路径！
+            # crawler 使用 browser_data/dy_user_data_dir，所以这里也要一致
+            import os
+            user_data_dir = os.path.join(os.getcwd(), "browser_data", config.USER_DATA_DIR % config.PLATFORM)
             browser_context = await chromium.launch_persistent_context(
-                user_data_dir=config.USER_DATA_DIR % config.PLATFORM,  # 使用平台名称格式化路径
+                user_data_dir=user_data_dir,
                 accept_downloads=True,
                 headless=config.HEADLESS,
                 proxy=playwright_proxy_format,
@@ -261,7 +265,6 @@ async def test_login():
                 print("\n" + "="*60)
                 print("✅✅✅ 登录测试成功！✅✅✅")
                 print("="*60)
-                user_data_dir = config.USER_DATA_DIR % config.PLATFORM
                 print("\n提示:")
                 print(f"- 登录状态已保存到: {user_data_dir}/ 目录")
                 print("- 下次运行将自动使用已保存的登录状态")
@@ -389,7 +392,8 @@ async def run_search_mode():
 
     # 检查登录状态
     import os
-    user_data_dir = config.USER_DATA_DIR % config.PLATFORM
+    # 🔥 使用与 crawler 相同的路径
+    user_data_dir = os.path.join(os.getcwd(), "browser_data", config.USER_DATA_DIR % config.PLATFORM)
     has_login_cache = os.path.exists(user_data_dir)
 
     if not has_login_cache:
@@ -453,7 +457,8 @@ async def run_detail_mode():
 
     # 检查登录状态
     import os
-    user_data_dir = config.USER_DATA_DIR % config.PLATFORM
+    # 🔥 使用与 crawler 相同的路径
+    user_data_dir = os.path.join(os.getcwd(), "browser_data", config.USER_DATA_DIR % config.PLATFORM)
     has_login_cache = os.path.exists(user_data_dir)
 
     if not has_login_cache:
@@ -501,7 +506,8 @@ async def run_creator_mode():
 
     # 检查登录状态
     import os
-    user_data_dir = config.USER_DATA_DIR % config.PLATFORM
+    # 🔥 使用与 crawler 相同的路径
+    user_data_dir = os.path.join(os.getcwd(), "browser_data", config.USER_DATA_DIR % config.PLATFORM)
     has_login_cache = os.path.exists(user_data_dir)
 
     if not has_login_cache:
