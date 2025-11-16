@@ -154,6 +154,28 @@ class AutoReplyComments:
                 no_new_comments_count = 0  # 重置计数器
                 last_comment_count = current_comment_count
 
+            # 尝试点击"查看更多评论"按钮
+            try:
+                more_button_selectors = [
+                    'span:has-text("查看更多评论")',
+                    'div:has-text("查看更多评论")',
+                    'button:has-text("查看更多")',
+                    '[class*="load-more"]',
+                ]
+                for btn_selector in more_button_selectors:
+                    try:
+                        more_btn = await self.page.query_selector(btn_selector)
+                        if more_btn and await more_btn.is_visible():
+                            if scroll_count < 3:
+                                print(f"    找到'查看更多'按钮，点击加载")
+                            await more_btn.click()
+                            await asyncio.sleep(2)
+                            break
+                    except:
+                        pass
+            except:
+                pass
+
             # 滚动逻辑 - 优先在评论区容器内滚动
             if comment_container:
                 # 在评论区容器内滚动
