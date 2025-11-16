@@ -330,36 +330,60 @@ class AutoReplyComments:
             await self.page.goto(video_url, wait_until="domcontentloaded", timeout=60000)
             await asyncio.sleep(random.uniform(3, 5))
 
-            # 2. 先尝试找到评论区容器并聚焦
-            print("⏬ 定位评论区...")
-            comment_container_selectors = [
-                '[id*="comment"]',
-                '[class*="comment-container"]',
-                '[class*="comment-list"]',
-                'div[data-e2e="comment-list"]',
-            ]
+            # 2. 找到评论列表容器（可滚动的div）
+            print("⏬ 定位评论列表容器...")
 
-            comment_container = None
-            for selector in comment_container_selectors:
-                try:
-                    comment_container = await self.page.query_selector(selector)
-                    if comment_container:
-                        print(f"  找到评论区容器: {selector}")
-                        break
-                except:
-                    continue
+            comment_list = None
+            try:
+                # 给可滚动的评论容器添加一个临时ID
+                await self.page.evaluate("""
+                    () => {
+                        // 查找所有包含评论的div
+                        const allDivs = document.querySelectorAll('div[class*="comment"], div[id*="comment"]');
 
-            # 滚动到评论区
-            if comment_container:
-                await comment_container.scroll_into_view_if_needed()
-                await asyncio.sleep(2)
-            else:
-                # 备用方案：滚动到页面中部
-                await self.page.evaluate("window.scrollTo(0, document.body.scrollHeight * 0.5)")
-                await asyncio.sleep(2)
+                        // 找到可滚动的容器（有scrollHeight > clientHeight）
+                        for (const div of allDivs) {
+                            if (div.scrollHeight > div.clientHeight && div.clientHeight > 100) {
+                                div.setAttribute('data-temp-scroll-container', 'true');
+                                return true;
+                            }
+                        }
 
-            # 3. 查找目标评论
-            comment_element = await self.scroll_and_find_comment(comment_content, max_scrolls=max_scrolls, comment_container=comment_container)
+                        // 备用：查找评论项的父容器
+                        const commentItems = document.querySelectorAll('[data-e2e="comment-item"]');
+                        if (commentItems.length > 0) {
+                            let parent = commentItems[0].parentElement;
+                            // 向上找到可滚动的父元素
+                            for (let i = 0; i < 10; i++) {
+                                if (!parent) break;
+                                if (parent.scrollHeight > parent.clientHeight) {
+                                    parent.setAttribute('data-temp-scroll-container', 'true');
+                                    return true;
+                                }
+                                parent = parent.parentElement;
+                            }
+                        }
+
+                        return false;
+                    }
+                """)
+
+                # 通过临时ID获取元素
+                comment_list = await self.page.query_selector('[data-temp-scroll-container="true"]')
+
+                if comment_list:
+                    print("  ✅ 找到可滚动的评论列表容器")
+                else:
+                    print("  ⚠️  未找到可滚动容器，将使用备用方案")
+            except Exception as e:
+                print(f"  ⚠️  定位容器失败: {e}")
+                comment_list = None
+
+            # 等待评论加载
+            await asyncio.sleep(2)
+
+            # 3. 查找目标评论（在评论列表容器内滚动）
+            comment_element = await self.scroll_and_find_comment(comment_content, max_scrolls=max_scrolls, comment_container=comment_list)
             if not comment_element:
                 print("❌ 未找到目标评论")
                 return False
