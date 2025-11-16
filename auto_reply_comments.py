@@ -154,7 +154,9 @@ class AutoReplyComments:
                     if reply_button:
                         print(f"  找到回复按钮（选择器: {selector}）")
                         await reply_button.click()
-                        await asyncio.sleep(1)
+                        # 增加等待时间，让输入框有时间加载出来
+                        print("  ⏳ 等待输入框加载...")
+                        await asyncio.sleep(3)
                         return True
                 except:
                     continue
@@ -162,7 +164,7 @@ class AutoReplyComments:
             print("  ⚠️  未找到回复按钮，尝试直接点击评论元素")
             # 有些网站点击评论本身就能弹出回复框
             await comment_element.click()
-            await asyncio.sleep(1)
+            await asyncio.sleep(3)
             return True
 
         except Exception as e:
@@ -173,28 +175,44 @@ class AutoReplyComments:
         """输入并发送回复"""
         try:
             # 查找回复输入框（尝试多个选择器）
+            print("  🔍 正在查找输入框...")
             input_selectors = [
                 'textarea[placeholder*="回复"]',
                 'textarea[placeholder*="评论"]',
                 'textarea[data-e2e="reply-input"]',
                 'textarea[data-e2e="comment-input"]',
+                'div[contenteditable="true"]',  # 抖音可能使用 contenteditable div
                 'textarea',
                 'input[type="text"][placeholder*="回复"]',
                 'input[type="text"][placeholder*="评论"]',
+                'input[type="text"]',
             ]
 
             input_box = None
-            for selector in input_selectors:
+            for i, selector in enumerate(input_selectors):
                 try:
-                    input_box = await self.page.wait_for_selector(selector, timeout=3000)
+                    print(f"    尝试选择器 {i+1}/{len(input_selectors)}: {selector}")
+                    input_box = await self.page.wait_for_selector(selector, timeout=5000)
                     if input_box:
-                        print(f"  找到输入框（选择器: {selector}）")
-                        break
-                except:
+                        # 检查元素是否可见
+                        is_visible = await input_box.is_visible()
+                        print(f"    找到元素，可见性: {is_visible}")
+                        if is_visible:
+                            print(f"  ✅ 找到输入框（选择器: {selector}）")
+                            break
+                        else:
+                            input_box = None
+                            continue
+                except Exception as e:
+                    print(f"    选择器失败: {str(e)[:50]}")
                     continue
 
             if not input_box:
                 print("  ❌ 未找到输入框")
+                print("  💡 调试信息：尝试截图查看页面状态...")
+                # 截图帮助调试
+                await self.page.screenshot(path="debug_no_input.png")
+                print("  💾 已保存截图到 debug_no_input.png")
                 return False
 
             # 点击输入框
