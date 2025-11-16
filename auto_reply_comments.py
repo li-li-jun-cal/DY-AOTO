@@ -349,28 +349,44 @@ class AutoReplyComments:
             comment_list = None
             try:
                 # 给可滚动的评论容器添加一个临时ID
-                await self.page.evaluate("""
+                found = await self.page.evaluate("""
                     () => {
-                        // 查找所有包含评论的div
-                        const allDivs = document.querySelectorAll('div[class*="comment"], div[id*="comment"]');
-
-                        // 找到可滚动的容器（有scrollHeight > clientHeight）
+                        // 方法1: 查找有 overflow-y: scroll/auto 的div
+                        const allDivs = document.querySelectorAll('div');
                         for (const div of allDivs) {
-                            if (div.scrollHeight > div.clientHeight && div.clientHeight > 100) {
-                                div.setAttribute('data-temp-scroll-container', 'true');
-                                return true;
+                            const style = window.getComputedStyle(div);
+                            const overflowY = style.overflowY;
+
+                            // 检查是否可滚动 + 有足够高度 + 包含评论
+                            if ((overflowY === 'scroll' || overflowY === 'auto') &&
+                                div.scrollHeight > div.clientHeight &&
+                                div.clientHeight > 200) {
+
+                                // 检查是否包含评论元素
+                                const hasComments = div.querySelector('[data-e2e="comment-item"]');
+                                if (hasComments) {
+                                    div.setAttribute('data-temp-scroll-container', 'true');
+                                    console.log('找到可滚动评论容器:', div.className, 'scrollHeight:', div.scrollHeight, 'clientHeight:', div.clientHeight);
+                                    return true;
+                                }
                             }
                         }
 
-                        // 备用：查找评论项的父容器
+                        // 方法2: 查找评论项的父容器
                         const commentItems = document.querySelectorAll('[data-e2e="comment-item"]');
                         if (commentItems.length > 0) {
                             let parent = commentItems[0].parentElement;
                             // 向上找到可滚动的父元素
-                            for (let i = 0; i < 10; i++) {
+                            for (let i = 0; i < 15; i++) {
                                 if (!parent) break;
-                                if (parent.scrollHeight > parent.clientHeight) {
+
+                                const style = window.getComputedStyle(parent);
+                                const overflowY = style.overflowY;
+
+                                if ((overflowY === 'scroll' || overflowY === 'auto') &&
+                                    parent.scrollHeight > parent.clientHeight) {
                                     parent.setAttribute('data-temp-scroll-container', 'true');
+                                    console.log('找到父级可滚动容器:', parent.className);
                                     return true;
                                 }
                                 parent = parent.parentElement;
@@ -385,7 +401,16 @@ class AutoReplyComments:
                 comment_list = await self.page.query_selector('[data-temp-scroll-container="true"]')
 
                 if comment_list:
-                    print("  ✅ 找到可滚动的评论列表容器")
+                    # 获取容器信息用于调试
+                    container_info = await comment_list.evaluate("""
+                        element => ({
+                            className: element.className,
+                            scrollHeight: element.scrollHeight,
+                            clientHeight: element.clientHeight,
+                            scrollTop: element.scrollTop
+                        })
+                    """)
+                    print(f"  ✅ 找到可滚动容器: scrollHeight={container_info['scrollHeight']}, clientHeight={container_info['clientHeight']}")
                 else:
                     print("  ⚠️  未找到可滚动容器，将使用备用方案")
             except Exception as e:
