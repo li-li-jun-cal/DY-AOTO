@@ -90,8 +90,14 @@ class AutoReplyComments:
         print(f"✅ 筛选后剩余 {len(filtered)} 条评论")
         return filtered
 
-    async def scroll_and_find_comment(self, comment_content: str, max_scrolls: int = 200) -> bool:
-        """滚动页面查找特定评论 - 支持大量评论的懒加载"""
+    async def scroll_and_find_comment(self, comment_content: str, max_scrolls: int = 200, comment_container=None) -> bool:
+        """滚动评论区查找特定评论 - 支持大量评论的懒加载
+
+        Args:
+            comment_content: 要查找的评论内容
+            max_scrolls: 最大滚动次数
+            comment_container: 评论区容器元素（如果有）
+        """
         print(f"🔍 开始查找评论: {comment_content[:30]}...")
 
         # 等待评论区加载
@@ -148,15 +154,33 @@ class AutoReplyComments:
                 no_new_comments_count = 0  # 重置计数器
                 last_comment_count = current_comment_count
 
-            # 滚动页面 - 滚动到底部触发懒加载
-            # 方法1: 滚动固定距离
-            await self.page.evaluate("window.scrollBy(0, 800)")
-            await asyncio.sleep(1.5)  # 增加等待时间，让抖音有时间加载
+            # 滚动逻辑 - 优先在评论区容器内滚动
+            if comment_container:
+                # 在评论区容器内滚动
+                try:
+                    await comment_container.evaluate("element => element.scrollBy(0, 1000)")
+                    await asyncio.sleep(1.5)
+                except:
+                    # 如果容器滚动失败，降级到页面滚动
+                    await self.page.evaluate("window.scrollBy(0, 800)")
+                    await asyncio.sleep(1.5)
+            else:
+                # 滚动整个页面
+                await self.page.evaluate("window.scrollBy(0, 800)")
+                await asyncio.sleep(1.5)
 
-            # 方法2: 每隔3次滚动，直接滚动到页面底部（更激进）
+            # 每隔3次滚动，尝试滚动到底部
             if scroll_count % 3 == 2:
-                await self.page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                await asyncio.sleep(2)
+                if comment_container:
+                    try:
+                        await comment_container.evaluate("element => element.scrollTop = element.scrollHeight")
+                        await asyncio.sleep(2)
+                    except:
+                        await self.page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                        await asyncio.sleep(2)
+                else:
+                    await self.page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                    await asyncio.sleep(2)
 
         print(f"⚠️  滚动结束，未找到目标评论")
         return None
@@ -306,13 +330,36 @@ class AutoReplyComments:
             await self.page.goto(video_url, wait_until="domcontentloaded", timeout=60000)
             await asyncio.sleep(random.uniform(3, 5))
 
-            # 2. 滚动到评论区（模拟用户行为）
-            print("⏬ 滚动到评论区...")
-            await self.page.evaluate("window.scrollTo(0, document.body.scrollHeight * 0.5)")
-            await asyncio.sleep(2)
+            # 2. 先尝试找到评论区容器并聚焦
+            print("⏬ 定位评论区...")
+            comment_container_selectors = [
+                '[id*="comment"]',
+                '[class*="comment-container"]',
+                '[class*="comment-list"]',
+                'div[data-e2e="comment-list"]',
+            ]
+
+            comment_container = None
+            for selector in comment_container_selectors:
+                try:
+                    comment_container = await self.page.query_selector(selector)
+                    if comment_container:
+                        print(f"  找到评论区容器: {selector}")
+                        break
+                except:
+                    continue
+
+            # 滚动到评论区
+            if comment_container:
+                await comment_container.scroll_into_view_if_needed()
+                await asyncio.sleep(2)
+            else:
+                # 备用方案：滚动到页面中部
+                await self.page.evaluate("window.scrollTo(0, document.body.scrollHeight * 0.5)")
+                await asyncio.sleep(2)
 
             # 3. 查找目标评论
-            comment_element = await self.scroll_and_find_comment(comment_content, max_scrolls=max_scrolls)
+            comment_element = await self.scroll_and_find_comment(comment_content, max_scrolls=max_scrolls, comment_container=comment_container)
             if not comment_element:
                 print("❌ 未找到目标评论")
                 return False
