@@ -199,37 +199,25 @@ class AutoReplyComments:
     async def type_and_send_reply(self, reply_text: str) -> bool:
         """输入并发送回复"""
         try:
-            # 查找回复输入框（尝试多个选择器）
+            # 查找回复输入框（抖音使用 contenteditable div）
             print("  🔍 正在查找输入框...")
             input_selectors = [
-                'textarea[placeholder*="回复"]',
-                'textarea[placeholder*="评论"]',
-                'textarea[data-e2e="reply-input"]',
-                'textarea[data-e2e="comment-input"]',
-                'div[contenteditable="true"]',  # 抖音可能使用 contenteditable div
-                'textarea',
-                'input[type="text"][placeholder*="回复"]',
-                'input[type="text"][placeholder*="评论"]',
-                'input[type="text"]',
+                'div[contenteditable="true"]',  # 抖音专用
+                'textarea[placeholder*="回复"]',  # 备用
+                'textarea[placeholder*="评论"]',  # 备用
+                'textarea',  # 备用
             ]
 
             input_box = None
-            for i, selector in enumerate(input_selectors):
+            for selector in input_selectors:
                 try:
-                    print(f"    尝试选择器 {i+1}/{len(input_selectors)}: {selector}")
-                    input_box = await self.page.wait_for_selector(selector, timeout=5000)
-                    if input_box:
-                        # 检查元素是否可见
-                        is_visible = await input_box.is_visible()
-                        print(f"    找到元素，可见性: {is_visible}")
-                        if is_visible:
-                            print(f"  ✅ 找到输入框（选择器: {selector}）")
-                            break
-                        else:
-                            input_box = None
-                            continue
-                except Exception as e:
-                    print(f"    选择器失败: {str(e)[:50]}")
+                    input_box = await self.page.wait_for_selector(selector, timeout=3000)
+                    if input_box and await input_box.is_visible():
+                        print(f"  ✅ 找到输入框")
+                        break
+                    else:
+                        input_box = None
+                except:
                     continue
 
             if not input_box:
@@ -254,14 +242,11 @@ class AutoReplyComments:
 
             await asyncio.sleep(1)
 
-            # 查找发送按钮
+            # 查找发送按钮（抖音用"回复"按钮）
             send_selectors = [
-                'button:has-text("发布")',
-                'button:has-text("发送")',
-                'button:has-text("回复")',
-                '[data-e2e="comment-post"]',
-                '[data-e2e="reply-post"]',
-                'button[type="submit"]',
+                'button:has-text("回复")',  # 抖音专用
+                'button:has-text("发布")',  # 备用
+                'button:has-text("发送")',  # 备用
             ]
 
             send_button = None
