@@ -95,7 +95,9 @@ class DouYinClient(AbstractApiClient):
         params["a_bogus"] = a_bogus
 
     async def request(self, method, url, **kwargs):
-        async with httpx.AsyncClient(proxy=self.proxy) as client:
+        # trust_env=False 禁用从环境变量读取代理设置
+        # 这样只有当 self.proxy 不为 None 时才使用代理
+        async with httpx.AsyncClient(proxy=self.proxy, trust_env=False) as client:
             response = await client.request(method, url, timeout=self.timeout, **kwargs)
         try:
             if response.text == "" or response.text == "blocked":
