@@ -10,50 +10,17 @@
 
 
 import asyncio
-import sys
 from typing import Optional
 
 import cmd_arg
 import config
 from database import db
-from base.base_crawler import AbstractCrawler
-from media_platform.bilibili import BilibiliCrawler
 from media_platform.douyin import DouYinCrawler
-from media_platform.kuaishou import KuaishouCrawler
-from media_platform.tieba import TieBaCrawler
-from media_platform.weibo import WeiboCrawler
-from media_platform.xhs import XiaoHongShuCrawler
-from media_platform.zhihu import ZhihuCrawler
 
 
-class CrawlerFactory:
-    CRAWLERS = {
-        "xhs": XiaoHongShuCrawler,
-        "dy": DouYinCrawler,
-        "ks": KuaishouCrawler,
-        "bili": BilibiliCrawler,
-        "wb": WeiboCrawler,
-        "tieba": TieBaCrawler,
-        "zhihu": ZhihuCrawler,
-    }
-
-    @staticmethod
-    def create_crawler(platform: str) -> AbstractCrawler:
-        crawler_class = CrawlerFactory.CRAWLERS.get(platform)
-        if not crawler_class:
-            raise ValueError(
-                "Invalid Media Platform Currently only supported xhs or dy or ks or bili ..."
-            )
-        return crawler_class()
+crawler: Optional[DouYinCrawler] = None
 
 
-crawler: Optional[AbstractCrawler] = None
-
-
-# persist-1<persist1@126.com>
-# 原因：增加 --init_db 功能，用于数据库初始化。
-# 副作用：无
-# 回滚策略：还原此文件。
 async def main():
     # Init crawler
     global crawler
@@ -67,9 +34,8 @@ async def main():
         print(f"Database {args.init_db} initialized successfully.")
         return  # Exit the main function cleanly
 
-
-
-    crawler = CrawlerFactory.create_crawler(platform=config.PLATFORM)
+    # Create and start Douyin crawler
+    crawler = DouYinCrawler()
     await crawler.start()
 
 

@@ -101,10 +101,10 @@ CUSTOM_WORDS = {
 }
 
 # 停用(禁用)词文件路径
-STOP_WORDS_FILE = "./docs/hit_stopwords.txt"
+STOP_WORDS_FILE = ""  # 已删除docs目录
 
 # 中文字体文件路径
-FONT_PATH = "./docs/STZHONGS.TTF"
+FONT_PATH = ""  # 已删除docs目录
 
 # 爬取间隔时间
 CRAWLER_MAX_SLEEP_SEC = 2
@@ -116,10 +116,4 @@ CRAWLER_MAX_SLEEP_SEC = 2
 # 支持平台: 抖音(dy)、小红书(xhs)
 ENABLE_RPA_SEARCH = True
 
-from .bilibili_config import *
-from .xhs_config import *
 from .dy_config import *
-from .ks_config import *
-from .weibo_config import *
-from .tieba_config import *
-from .zhihu_config import *
